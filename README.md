@@ -4,7 +4,7 @@
 
 | Number  | Name              | User                                 | E-mail                                   |
 | --------|-------------------|--------------------------------------| -----------------------------------------|
-| 103299  | Rodrigo Alves     | <https://github.com/El-Psy-Kongrooo> | <rodrigo.lucas.alves@tecnico.ulisboa.pt> |
+| 103299  | Rodrigo Alves     | <https://github.com/rodrigo-l-alves> | <rodrigo.lucas.alves@tecnico.ulisboa.pt> |
 | 102803  | Afonso Pires      | <https://github.com/afonsopires1>    | <afonso.p.pires@tecnico.ulisboa.pt>      |
 |  93581  | João Lobato       | <https://github.com/jlobo912>        | <joao.c.lobato@tecnico.ulisboa.pt>       |
   
