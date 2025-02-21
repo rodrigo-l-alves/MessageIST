@@ -1,0 +1,47 @@
+                                              Table "public.messages"
+        Column         |            Type             | Collation | Nullable |               Default                
+-----------------------+-----------------------------+-----------+----------+--------------------------------------
+ id                    | integer                     |           | not null | nextval('messages_id_seq'::regclass)
+ sender_istid          | integer                     |           | not null | 
+ receiver_istid        | integer                     |           | not null | 
+ timestamp             | timestamp without time zone |           | not null | 
+ ciphertext            | text                        |           | not null | 
+ conversation_id       | integer                     |           | not null | 
+ iv                    | text                        |           |          | 
+ encrypted_session_key | text                        |           |          | 
+ sequence_number       | integer                     |           |          |
+Indexes:
+    "messages_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "fk_conversation" FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+
+
+
+                                                  Table "public.conversations"
+            Column             |            Type             | Collation | Nullable |                  Default                  
+-------------------------------+-----------------------------+-----------+----------+-------------------------------------------
+ id                            | integer                     |           | not null | nextval('conversations_id_seq'::regclass)
+ participant1_istid            | integer                     |           | not null | 
+ participant2_istid            | integer                     |           | not null | 
+ encrypted_sessionkey_sender   | text                        |           | not null | 
+ encrypted_sessionkey_receiver | text                        |           | not null | 
+ created_at                    | timestamp without time zone |           |          | now()
+Indexes:
+    "conversations_pkey" PRIMARY KEY, btree (id)
+    "conversations_participant1_istid_participant2_istid_key" UNIQUE CONSTRAINT, btree (participant1_istid, participant2_istid)
+Referenced by:
+    TABLE "messages" CONSTRAINT "fk_conversation" FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+
+
+
+                   Table "public.users"
+    Column     |  Type   | Collation | Nullable | Default 
+---------------+---------+-----------+----------+---------
+ istid         | integer |           | not null | 
+ password_hash | text    |           | not null | 
+ public_key    | text    |           |          | 
+Indexes:
+    "users_pkey" PRIMARY KEY, btree (istid)
+
+
+

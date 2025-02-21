@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e3a8a;
+            background-size: 50%; /* Let the background size be its natural size */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        h1 {
+            margin-top: 30px;
+            color: white;
+            background-color: black; /* Black background for the entire title */
+            padding: 10px 20px; /* Padding around the text */
+            border-radius: 8px; /* Rounded corners */
+            display: inline-block;
+        }
+
+        .hub-title {
+            background-color: #ff7f00; /* Orange background for 'Hub' */
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 22px;
+            font-weight: bold;
+            display: inline-block;
+            margin-left: 5px; /* Space between the words */
+        }
+
+        h2 {
+            color: #555;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+
+        /* Add a container to hold both login and register sections side by side */
+        .form-wrapper {
+            display: flex;
+            justify-content: center; /* Center the form container */
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .form-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            margin: 10px;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .message {
+            color: #ff0000;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        /* Optional: Adjust the flex layout for mobile responsiveness */
+        @media (max-width: 768px) {
+            .form-wrapper {
+                flex-direction: column; /* Stack the forms on smaller screens */
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to <span class="hub-title">MessageHub</span></h1> <!-- Orange "Hub" in its own box -->
+
+    <div class="form-wrapper">
+        <!-- Login Section -->
+        <div class="form-container">
+            <h2>Login</h2>
+            <input type="text" id="istid" placeholder="IST ID" required><br>
+            <input type="password" id="password" placeholder="Password" required><br>
+            <button onclick="sendLogin()">Login</button>
+        </div>
+
+        <!-- Register Section -->
+        <div class="form-container">
+            <h2>Register</h2>
+            <input type="text" id="register_istid" placeholder="IST ID" required><br>
+            <input type="password" id="register_password" placeholder="Password" required><br>
+            <button onclick="sendRegister()">Register</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendLogin() {
+            const istid = document.getElementById('istid').value; // Corrected to match input field
+            const password = document.getElementById('password').value;
+        
+            console.log(`DEBUG: Attempting login with istid=${istid} and password=${password}`);
+        
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ istid: istid, password: password }) // Match backend expectations
+            });
+        
+            const data = await response.json();
+            if (response.ok) {
+                console.log("Login successful:", data);
+                window.location.href = '/chat'; // Redirect to chat
+            } else {
+                console.error("Login failed:", data);
+                alert("Login failed");
+            }
+        }
+        async function generateKeyPair() {
+            const keyPair = await window.crypto.subtle.generateKey(
+                {
+                    name: "RSA-OAEP",
+                    modulusLength: 2048,
+                    publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+                    hash: "SHA-256",
+                },
+                true,
+                ["encrypt", "decrypt"]
+            );
+        
+            // Export public key (SPKI)
+            const publicKeyBuffer = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+            const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(publicKeyBuffer)));
+        
+            // Export private key (PKCS8)
+            const privateKeyBuffer = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+            const privateKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(privateKeyBuffer)));
+        
+            // Download private key
+            const blob = new Blob([privateKeyBase64], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `private_key_${Date.now()}.txt`;
+            a.click();
+        
+            return { publicKeyBase64, privateKeyBase64 };
+        }
+        
+        async function sendRegister() {
+            const istid = document.getElementById('register_istid').value;
+            const password = document.getElementById('register_password').value;
+        
+            const { publicKeyBase64 } = await generateKeyPair();
+        
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    istid: istid,
+                    password: password,
+                    public_key: publicKeyBase64
+                })
+            });
+        
+            if (response.ok) {
+                alert("Registration successful. Your private key file has been downloaded. Keep it safe!");
+            } else {
+                alert("Registration failed");
+            }
+        }
+        
+    </script>
+</body>
+</html>

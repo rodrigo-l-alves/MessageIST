@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e3a8a;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+        }
+        h1 {
+            color: white;
+            background-color: black;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .hub-title {
+            background-color: #ff7f00;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        h2#username {
+            color: black;
+            margin: 10px 0;
+        }
+        .chat-container {
+            width: 80%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .input-container {
+            margin-bottom: 20px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .buttons-left {
+            display: flex;
+        }
+        .buttons-left button {
+            margin-right: 10px;
+        }
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .messages {
+            max-height: 400px;
+            overflow-y: auto;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+            flex-grow: 1;
+        }
+        .message {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .logout-button {
+            margin-left: auto;
+        }
+        .active-conversations {
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            flex-grow: 1;
+        }
+        #active-conversations-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        #active-conversations-list li {
+            margin: 10px 0;
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .right-column {
+            width: 200px;
+            background-color: #f4f4f4;
+            margin-left: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <input type="file" id="privateKeyFile" accept=".txt" />
+        <button onclick="importPrivateKey()">Import Private Key</button>
+        <h2 id="username">Welcome, User!</h2>
+        <h1>Message <span class="hub-title">Hub</span></h1>
+        <div class="input-container">
+            <input type="hidden" id="sender_id" value="">
+            <input type="text" id="receiver_id" placeholder="Receiver ID" required><br>
+            <button onclick="fetchConversationKey()">Load Conversation Key</button><br><br>
+            <textarea id="message" placeholder="Type a message" required></textarea><br>
+            <div class="button-group">
+                <div class="buttons-left">
+                    <button onclick="sendMessage()">Send Message</button>
+                    <button onclick="fetchMessages()">Refresh Messages</button>
+                </div>
+                <button class="logout-button" onclick="logout()">Logout</button>
+            </div>
+        </div>
+        <div class="messages" id="messages"></div>
+    </div>
+
+    <div class="right-column">
+        <h3>Active Conversations</h3>
+        <ul id="active-conversations-list"></ul>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            fetch('/get_logged_in_user')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.istid) {
+                        document.getElementById('sender_id').value = data.istid;
+                        document.getElementById('username').textContent = `Welcome, ${data.istid}!`;
+
+                        // Fetch and display active conversations
+                        fetchActiveConversations(data.istid);
+                    } else {
+                        window.location.href = '/'; // Redirect to login if not logged in
+                    }
+                });
+        });
+        
+        async function fetchActiveConversations(istid) {
+            try {
+                const response = await fetch('/get_active_conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ istid: istid })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    console.error('Error fetching active conversations:', data.error);
+                    return;
+                }
+
+                const activeConversationsList = document.getElementById('active-conversations-list');
+                activeConversationsList.innerHTML = '';
+
+                // Filter the conversations where istid is one of the participants
+                const filteredConversations = data.active_conversations.filter(conversation => {
+                    return conversation.participants.includes(Number(istid));
+                });
+
+                filteredConversations.forEach(conversation => {
+                    const listItem = document.createElement('li');
+                    
+                    // Get the participants of the conversation
+                    const participants = conversation.participants;
+
+                    // Determine the other participant's ID
+                    let id;
+                    if (participants[0] === Number(istid)) {
+                        id = participants[1]; // other participant
+                    } else {
+                        id = participants[0]; // other participant
+                    }
+
+                    // Set the text content to display the conversation ID
+                    listItem.textContent = `Conversation ID: ${conversation.conversation_id}, Other Participant ID: ${id}`;
+                    activeConversationsList.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error('Error fetching active conversations:', error);
+            }
+        }
+        let userPrivateKey = null;
+        let sessionKey = null;
+
+        async function importPrivateKey() {
+            const fileInput = document.getElementById('privateKeyFile');
+            if (fileInput.files.length === 0) {
+                alert("No file selected");
+                return;
+            }
+            const file = fileInput.files[0];
+            const privateKeyBase64 = await file.text();
+            const privateKeyBuffer = Uint8Array.from(atob(privateKeyBase64), c => c.charCodeAt(0));
+            userPrivateKey = await window.crypto.subtle.importKey(
+                "pkcs8",
+                privateKeyBuffer,
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                true,
+                ["decrypt"]
+            );
+            alert("Private key imported successfully!");
+        }
+
+        async function fetchPublicKey(istid) {
+            const resp = await fetch('/get_user_public_key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ istid: istid })
+            });
+            const data = await resp.json();
+            return data.public_key;
+        }
+
+        async function fetchConversationKey() {
+            const receiverId = document.getElementById('receiver_id').value;
+            if (!userPrivateKey) {
+                alert("Please import your private key before loading the conversation key.");
+                return;
+            }
+            const resp = await fetch('/get_conversation_keys', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receiver_istid: receiverId })
+            });
+            const data = await resp.json();
+            const encryptedSessionKeyBase64 = data.encrypted_sessionkey_for_user;
+            const encryptedSessionKey = Uint8Array.from(atob(encryptedSessionKeyBase64), c => c.charCodeAt(0));
+
+            // Decrypt session key
+            const rawSessionKey = await window.crypto.subtle.decrypt(
+                { name: "RSA-OAEP" },
+                userPrivateKey,
+                encryptedSessionKey
+            );
+            sessionKey = await window.crypto.subtle.importKey(
+                "raw",
+                rawSessionKey,
+                { name: "AES-GCM" },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            alert("Conversation key loaded successfully!");
+        }
+
+        async function sendMessage() {
+            const senderId = document.getElementById('sender_id').value;
+            const receiverId = document.getElementById('receiver_id').value;
+            const content = document.getElementById('message').value;
+
+            if (!userPrivateKey || !sessionKey) {
+                alert("Please import your private key and load the conversation key before sending messages.");
+                return;
+            }
+
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encryptedContentBuffer = await window.crypto.subtle.encrypt(
+                { name: "AES-GCM", iv: iv },
+                sessionKey,
+                new TextEncoder().encode(content)
+            );
+
+            await fetch('/send_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    receiver_istid: receiverId,
+                    encrypted_content: btoa(String.fromCharCode(...new Uint8Array(encryptedContentBuffer))),
+                    iv: btoa(String.fromCharCode(...iv))
+                })
+            });
+
+            document.getElementById('message').value = '';
+            fetchMessages();
+        }
+
+        async function fetchMessages() {
+            const receiverId = document.getElementById('receiver_id').value;
+
+            if (!userPrivateKey || !sessionKey) {
+                alert("Please import your private key and load the conversation key before fetching messages.");
+                return;
+            }
+
+            const response = await fetch('/fetch_messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ receiver_istid: receiverId })
+            });
+
+            const data = await response.json();
+            const messages = data.messages;
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '';
+
+            for (const msg of messages) {
+                try {
+                    const encryptedContent = Uint8Array.from(atob(msg.encrypted_content), c => c.charCodeAt(0));
+                    const iv = Uint8Array.from(atob(msg.iv), c => c.charCodeAt(0));
+
+                    const decryptedContent = await window.crypto.subtle.decrypt(
+                        { name: "AES-GCM", iv: iv },
+                        sessionKey,
+                        encryptedContent
+                    );
+
+                    const plaintext = new TextDecoder().decode(new Uint8Array(decryptedContent));
+                    const msgElement = document.createElement('div');
+                    msgElement.classList.add('message');
+
+                    // Include the metadata logic here
+                    msgElement.innerHTML = `
+                        <div class="meta">[Message ${msg.sequence_number}] [${msg.timestamp}] User ${msg.sender}</div>
+                        <div class="content">${plaintext}</div>
+                    `;
+                    messagesDiv.appendChild(msgElement);
+
+                } catch (error) {
+                    console.error("Decryption failed:", error);
+                }
+            }
+        }
+        async function logout() {
+            await fetch('/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+    </script>
+
+</body>
+</html>

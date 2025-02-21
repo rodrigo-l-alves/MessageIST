@@ -1,0 +1,22 @@
+Run this on the Database machine:
+
+sudo iptables -A INPUT -p tcp -d 192.168.1.20 --dport 5432 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp -s 192.168.1.20 --sport 5432 -j ACCEPT
+sudo iptables -P INPUT DROP
+sudo iptables -P FORWARD DROP
+sudo iptables -P OUTPUT DROP
+
+Run this on the Appserver machine:
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+sudo iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
+sudo iptables -A INPUT -p udp --sport 53 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp -d nm6vv7hf-5000.uks1.devtunnels.ms --dport 443 -j ACCEPT
+sudo iptables -A INPUT -p tcp -s nm6vv7hf-5000.uks1.devtunnels.ms --sport 443 -j ACCEPT
+sudo iptables -A INPUT -p tcp -s 192.168.1.20 --sport 5432 -j ACCEPT
+sudo iptables -A OUTPUT -p tcp -d 192.168.1.20 --dport 5432 -j ACCEPT
+sudo iptables -A INPUT -i lo -j ACCEPT
+sudo iptables -A OUTPUT -o lo -j ACCEPT
+sudo iptables -P INPUT DROP
+sudo iptables -P FORWARD DROP
+sudo iptables -P OUTPUT DROP

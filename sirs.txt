@@ -1,0 +1,63 @@
+   ┌────────────────┐        ┌────────────────┐        ┌────────────────┐
+   │     User A     │        │  Application   │        │     User B     │
+   │ (Client/Browser)         │    Server      │        │(Client/Browser)│
+   └──────┬─────────┘        └──────┬────────┘        └───────┬─────────┘
+          │                           │                           │
+          │ (Registration)            │                           │
+          │ Generate RSA key pair     │                           │
+          │ (locally)                 │                           │
+          │ Extract public key        │                           │
+          │                           │                           │
+          │ POST /register {istid,    │                           │
+          │  password_hash,           │                           │
+          │  public_key}              │                           │
+          ───────────────────────────>│ Store istid, hash,        │
+          │                           │  public_key in UserDB     │
+          │                           │ Return success (201)      │
+          │<───────────────────────────                           │
+          │                           │                           │
+
+          │ (Login)                   │                           │
+          │ Enter password            │                           │
+          │ POST /login {istid, pwd}  │                           │
+          ───────────────────────────>│ Check pwd hash in UserDB  │
+          │                           │ Return success (200)      │
+          │<───────────────────────────                           │
+          │                           │                           │
+
+          │ (Send Message to User B)  │                           │
+          │ Fetch User B’s public_key │                           │
+          │ (via /some_endpoint if    │                           │
+          │  needed, or already known)│                           │
+          │                           │                           │
+          │ Derive a shared or        │                           │
+          │ ephemeral session key      │                           │
+          │ Encrypt message content    │                           │
+          │ with session key           │                           │
+          │ Encrypt session key using  │                           │
+          │ User B's public key        │                           │
+          │                           │                           │
+          │ POST /send_message {       │                           │
+          │  receiver_istid,           │                           │
+          │  encrypted_session_key,    │
+          │  encrypted_content }       │                           │
+          ───────────────────────────>│ Store message in MessagesDB│
+          │                           │ Return success (201)      │
+          │<───────────────────────────                           │
+          │                           │                           │
+
+          │ (User B fetches messages) │                           │
+          │                           │<───────────────────────────
+          │                           │  POST /fetch_messages {   │
+          │                           │   sender_istid, receiver_istid }
+          │<───────────────────────────                           
+          │ Fetch encrypted messages   │
+          │ from MessagesDB            │
+          │ Return {encrypted_content, │
+          │ encrypted_session_key,...} │
+          │                           │───────────────────────────>
+          │                           │ User B decrypts session key
+          │                           │ locally with their private key
+          │                           │ Decrypts message content locally
+          │                           │ Display plaintext message to User B
+          │                           │
